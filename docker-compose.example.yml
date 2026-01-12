@@ -1,0 +1,74 @@
+version: "3.8"
+
+services:
+  nanit:
+    image: seangreenhalgh/nanit:latest
+    container_name: nanit
+    restart: unless-stopped
+    ports:
+      - "1935:1935"
+    volumes:
+      - nanit_data:/data
+    environment:
+      # Required: Your server's IP address (reachable from Nanit camera)
+      - NANIT_RTMP_ADDR=${NANIT_RTMP_ADDR}
+
+      # Session file location
+      - NANIT_SESSION_FILE=/data/session.json
+
+      # Security: IP Access Control (REQUIRED - deny-by-default)
+      # Option 1: Use presets (hassio, frigate, docker, private, localhost)
+      - NANIT_RTMP_ALLOWED_PRESETS=${NANIT_RTMP_ALLOWED_PRESETS:-private}
+      # Option 2: Explicit IPs (comma-separated, supports CIDR)
+      - NANIT_RTMP_ALLOWED_IPS=${NANIT_RTMP_ALLOWED_IPS:-}
+
+      # Security logging
+      - NANIT_RTMP_LOG_DENIED=${NANIT_RTMP_LOG_DENIED:-true}
+      - NANIT_RTMP_LOG_ALLOWED=${NANIT_RTMP_LOG_ALLOWED:-false}
+
+      # Logging level (trace, debug, info, warn, error)
+      - NANIT_LOG_LEVEL=${NANIT_LOG_LEVEL:-info}
+
+      # MQTT Integration (optional)
+      - NANIT_MQTT_ENABLED=${NANIT_MQTT_ENABLED:-false}
+      - NANIT_MQTT_BROKER_URL=${NANIT_MQTT_BROKER_URL:-}
+      - NANIT_MQTT_USERNAME=${NANIT_MQTT_USERNAME:-}
+      - NANIT_MQTT_PASSWORD=${NANIT_MQTT_PASSWORD:-}
+      - NANIT_MQTT_PREFIX=${NANIT_MQTT_PREFIX:-nanit}
+
+volumes:
+  nanit_data:
+    driver: local
+
+# ============================================================
+# PORTAINER STACK DEPLOYMENT INSTRUCTIONS
+# ============================================================
+#
+# 1. First run the init script to get your refresh token:
+#    docker run -it -v nanit_data:/data \
+#      --entrypoint=/app/scripts/init-nanit.sh \
+#      seangreenhalgh/nanit
+#
+# 2. Deploy this stack in Portainer:
+#    - Go to Stacks > Add Stack
+#    - Paste this file content
+#    - Set environment variables below
+#    - Deploy
+#
+# 3. Find your baby_uid in the container logs
+#
+# 4. Access stream at: rtmp://YOUR_IP:1935/local/YOUR_BABY_UID
+#
+# ============================================================
+# REQUIRED ENVIRONMENT VARIABLES (set in Portainer)
+# ============================================================
+# NANIT_RTMP_ADDR=192.168.1.100:1935  (your server IP)
+#
+# ============================================================
+# SECURITY PRESETS
+# ============================================================
+# hassio    - Home Assistant addon network (172.30.32.0/23)
+# frigate   - Frigate NVR addon network
+# docker    - Docker bridge networks (172.17-31.x.x)
+# private   - All RFC1918 private ranges (10.x, 172.x, 192.168.x)
+# localhost - Loopback only

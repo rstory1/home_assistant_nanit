@@ -1,4 +1,30 @@
+# Credentials and sensitive data
 .env
-data
-.DS_Store
 docker-compose.yml
+.nanit_auth.json
+.nanit_fcm_credentials.json
+data/
+session.json
+
+# Binaries
+bin/
+nanit
+nanit-dev
+test-connections
+test-notifications
+*.exe
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# macOS
+.DS_Store

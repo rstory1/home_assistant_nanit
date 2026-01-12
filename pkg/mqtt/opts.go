@@ -9,4 +9,8 @@ type Opts struct {
 	Password string
 
 	TopicPrefix string
+
+	// Discovery options for Home Assistant MQTT auto-discovery
+	DiscoveryEnabled bool
+	RTMPAddr         string // RTMP server address for stream URL sensor
 }

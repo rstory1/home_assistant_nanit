@@ -8,9 +8,9 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/sacOO7/gowebsocket"
-	"github.com/indiefan/home_assistant_nanit/pkg/baby"
-	"github.com/indiefan/home_assistant_nanit/pkg/session"
-	"github.com/indiefan/home_assistant_nanit/pkg/utils"
+	"github.com/scgreenhalgh/home_assistant_nanit/pkg/baby"
+	"github.com/scgreenhalgh/home_assistant_nanit/pkg/session"
+	"github.com/scgreenhalgh/home_assistant_nanit/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -47,16 +47,18 @@ func NewWebsocketConnectionManager(babyUID string, cameraUID string, session *se
 
 	manager.WithReadyConnection(func(conn *WebsocketConnection, ctx utils.GracefulContext) {
 		ticker := time.NewTicker(20 * time.Second)
+		defer ticker.Stop() // Ensure ticker is stopped even on panic
 
 		for {
 			select {
 			case <-ctx.Done():
-				ticker.Stop()
 				return
 			case <-ticker.C:
-				conn.SendMessage(&Message{
+				if err := conn.SendMessage(&Message{
 					Type: Message_Type(Message_KEEPALIVE).Enum(),
-				})
+				}); err != nil {
+					log.Warn().Err(err).Msg("Failed to send keepalive")
+				}
 			}
 		}
 	})
@@ -98,7 +100,7 @@ func (manager *WebsocketConnectionManager) run(attempt utils.AttemptContext) {
 
 	// Remote
 	url := fmt.Sprintf("wss://api.nanit.com/focus/cameras/%v/user_connect", manager.CameraUID)
-	auth := fmt.Sprintf("Bearer %v", manager.Session.AuthToken)
+	auth := fmt.Sprintf("Bearer %v", manager.API.SessionStore.GetAuthToken())
 
 	// Local
 	// url := "wss://192.168.3.195:442"
@@ -157,20 +159,7 @@ func (manager *WebsocketConnectionManager) run(attempt utils.AttemptContext) {
 	}
 
 	socket.OnBinaryMessage = func(data []byte, _ gowebsocket.Socket) {
-		m := &Message{}
-		err := proto.Unmarshal(data, m)
-		if err != nil {
-			log.Error().Err(err).Bytes("rawdata", data).Msg("Received malformed binary message")
-			return
-		}
-
-		log.Debug().Stringer("data", m).Msg("Received message")
-
-		manager.mu.RLock()
-		readyState := manager.readyState
-		manager.mu.RUnlock()
-
-		go readyState.Connection.handleMessage(m)
+		manager.handleBinaryMessage(data)
 	}
 
 	log.Trace().Msg("Connecting to websocket")
@@ -182,6 +171,30 @@ func (manager *WebsocketConnectionManager) run(attempt utils.AttemptContext) {
 		log.Debug().Msg("Closing websocket")
 		socket.Close()
 	}
+}
+
+// handleBinaryMessage processes incoming binary messages with nil-safety
+func (manager *WebsocketConnectionManager) handleBinaryMessage(data []byte) {
+	m := &Message{}
+	err := proto.Unmarshal(data, m)
+	if err != nil {
+		log.Error().Err(err).Bytes("rawdata", data).Msg("Received malformed binary message")
+		return
+	}
+
+	log.Debug().Stringer("data", m).Msg("Received message")
+
+	manager.mu.RLock()
+	readyState := manager.readyState
+	manager.mu.RUnlock()
+
+	// Safely handle nil readyState (can happen if message arrives before connection is ready)
+	if readyState == nil || readyState.Connection == nil {
+		log.Warn().Msg("Received message but connection not ready")
+		return
+	}
+
+	go readyState.Connection.handleMessage(m)
 }
 
 func notifyReadyHandler(handler WebsocketConnectionHandler, state readyState) {
