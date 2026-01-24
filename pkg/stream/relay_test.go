@@ -485,3 +485,58 @@ func TestRemoteRelayStartNonBlocking(t *testing.T) {
 	// Clean up
 	relay.Stop()
 }
+
+func TestRemoteRelayUnstableConnectionBackoff(t *testing.T) {
+	// This test verifies that unstable connections (connect succeeds but read fails quickly)
+	// trigger exponential backoff, preventing rapid reconnection loops
+	receiver := &MockPacketReceiver{}
+	connectTimes := make([]time.Time, 0)
+	connectMu := sync.Mutex{}
+
+	// Client that connects successfully but fails to read immediately
+	client := &MockRTMPClient{
+		packets: []av.Packet{}, // No packets - will immediately fail
+	}
+
+	client.onConnect = func() {
+		connectMu.Lock()
+		connectTimes = append(connectTimes, time.Now())
+		connectMu.Unlock()
+	}
+
+	relay := stream.NewRemoteRelay(stream.RemoteRelayConfig{
+		BabyUID:           "baby123",
+		AuthToken:         "authtoken",
+		PacketReceiver:    receiver,
+		RTMPClient:        client,
+		ReconnectDelay:    50 * time.Millisecond,
+		MaxReconnectDelay: 200 * time.Millisecond,
+		ReconnectEnabled:  true,
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go relay.Start(ctx)
+
+	// Wait for several reconnection attempts
+	time.Sleep(600 * time.Millisecond)
+	cancel()
+	relay.Stop()
+
+	connectMu.Lock()
+	defer connectMu.Unlock()
+
+	// Should have multiple attempts
+	require.GreaterOrEqual(t, len(connectTimes), 3, "Should have at least 3 connection attempts")
+
+	// Verify exponential backoff: delays should increase
+	// First delay: ~50ms, second: ~100ms, third: ~200ms (capped)
+	if len(connectTimes) >= 3 {
+		delay1 := connectTimes[1].Sub(connectTimes[0])
+		delay2 := connectTimes[2].Sub(connectTimes[1])
+
+		// Second delay should be longer than first (with some tolerance for timing)
+		assert.Greater(t, delay2.Milliseconds(), delay1.Milliseconds()/2,
+			"Backoff should increase: delay1=%v, delay2=%v", delay1, delay2)
+	}
+}

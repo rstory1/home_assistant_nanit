@@ -170,6 +170,12 @@ func (r *RTMPRelay) relayLoop() {
 	consecutiveFailures := 0
 	authFailed := false // Track if auth has completely failed
 
+	// Track connection stability to detect rapid reconnection loops
+	connectionStartTime := time.Now() // Assume we have a connection from Start()
+	packetsReceived := 0
+	const stableConnectionThreshold = 10 * time.Second // Connection must be stable for this long to reset backoff
+	const minPacketsForStability = 5                   // Must receive at least this many packets to consider stable
+
 	for {
 		select {
 		case <-r.ctx.Done():
@@ -180,7 +186,32 @@ func (r *RTMPRelay) relayLoop() {
 
 		pkt, err := r.config.RTMPClient.ReadPacket()
 		if err != nil {
-			log.Debug().Err(err).Str("baby_uid", r.config.BabyUID).Msg("Read packet error")
+			// Check if this was an unstable connection (failed quickly after connecting)
+			connectionDuration := time.Since(connectionStartTime)
+			wasUnstable := connectionStartTime.IsZero() || connectionDuration < stableConnectionThreshold || packetsReceived < minPacketsForStability
+
+			if wasUnstable && !connectionStartTime.IsZero() {
+				consecutiveFailures++
+				log.Warn().
+					Err(err).
+					Str("baby_uid", r.config.BabyUID).
+					Dur("connection_duration", connectionDuration).
+					Int("packets_received", packetsReceived).
+					Int("consecutive_unstable", consecutiveFailures).
+					Msg("Connection was unstable - read failed shortly after connecting")
+
+				// Apply exponential backoff for unstable connections
+				reconnectDelay = time.Duration(float64(reconnectDelay) * 2)
+				if reconnectDelay > r.config.MaxReconnectDelay {
+					reconnectDelay = r.config.MaxReconnectDelay
+				}
+			} else {
+				log.Debug().Err(err).Str("baby_uid", r.config.BabyUID).Msg("Read packet error")
+			}
+
+			// Reset connection tracking
+			connectionStartTime = time.Time{}
+			packetsReceived = 0
 
 			if !r.config.ReconnectEnabled {
 				r.config.RTMPClient.Close()
@@ -189,6 +220,12 @@ func (r *RTMPRelay) relayLoop() {
 
 			// Attempt reconnection
 			r.config.RTMPClient.Close()
+
+			log.Info().
+				Str("baby_uid", r.config.BabyUID).
+				Dur("delay", reconnectDelay).
+				Int("consecutive_failures", consecutiveFailures).
+				Msg("Waiting before reconnection attempt")
 
 			select {
 			case <-r.ctx.Done():
@@ -254,9 +291,10 @@ func (r *RTMPRelay) relayLoop() {
 				continue
 			}
 
-			// Reset on successful connection
-			consecutiveFailures = 0
-			reconnectDelay = r.config.ReconnectDelay
+			// Connection succeeded - start tracking stability
+			// Don't reset backoff yet - wait until we've received packets successfully
+			connectionStartTime = time.Now()
+			packetsReceived = 0
 			authFailed = false
 			log.Info().Str("baby_uid", r.config.BabyUID).Msg("Reconnected to remote stream")
 
@@ -265,6 +303,20 @@ func (r *RTMPRelay) relayLoop() {
 				r.config.OnConnected()
 			}
 			continue
+		}
+
+		// Successfully received a packet
+		packetsReceived++
+
+		// Check if connection has become stable - only then reset backoff
+		if consecutiveFailures > 0 && time.Since(connectionStartTime) >= stableConnectionThreshold && packetsReceived >= minPacketsForStability {
+			log.Info().
+				Str("baby_uid", r.config.BabyUID).
+				Int("packets_received", packetsReceived).
+				Dur("stable_duration", time.Since(connectionStartTime)).
+				Msg("Connection is now stable, resetting backoff")
+			consecutiveFailures = 0
+			reconnectDelay = r.config.ReconnectDelay
 		}
 
 		// Forward packet to receiver
