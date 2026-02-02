@@ -4,3 +4,4 @@
 !./scripts
 !./go.mod
 !./go.sum
+!./addon
