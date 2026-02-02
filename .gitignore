@@ -8,7 +8,7 @@ session.json
 
 # Binaries
 bin/
-nanit
+/nanit
 nanit-dev
 test-connections
 test-notifications

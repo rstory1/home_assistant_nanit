@@ -1,0 +1,84 @@
+name: "Nanit Local Streaming"
+slug: "nanit"
+version: "2.2.0"
+description: "Local Nanit RTMP streaming with MQTT discovery and notifications."
+url: "https://github.com/scgreenhalgh/home_assistant_nanit"
+arch:
+  - amd64
+  - aarch64
+  - armv7
+  - armhf
+  - i386
+startup: services
+boot: auto
+init: false
+ports:
+  1935/tcp: 1935
+ports_description:
+  1935/tcp: "RTMP stream port"
+map:
+  - data:rw
+options:
+  email: ""
+  password: ""
+  refresh_token: ""
+  session_file: "/data/session.json"
+  rtmp_enabled: true
+  rtmp_addr: ""
+  rtmp_port: 1935
+  rtmp_allowed_presets: "hassio"
+  rtmp_allowed_ips: ""
+  rtmp_log_denied: true
+  rtmp_log_allowed: false
+  prefer_remote: false
+  mqtt_enabled: false
+  mqtt_broker_url: ""
+  mqtt_client_id: "nanit"
+  mqtt_username: ""
+  mqtt_password: ""
+  mqtt_prefix: "nanit"
+  mqtt_discovery: true
+  notifications_enabled: false
+  notifications_poll_interval: 10
+  notifications_jitter: 0.3
+  notifications_max_backoff: 300
+  notifications_message_timeout: 300
+  sleep_tracking_enabled: true
+  sleep_event_poll_interval: 30
+  stats_poll_interval: 60
+  events_polling: false
+  events_polling_interval: 30
+  events_message_timeout: 300
+  log_level: "info"
+schema:
+  email: "email?"
+  password: "password?"
+  refresh_token: "str?"
+  session_file: "str"
+  rtmp_enabled: "bool"
+  rtmp_addr: "str?"
+  rtmp_port: "port"
+  rtmp_allowed_presets: "str?"
+  rtmp_allowed_ips: "str?"
+  rtmp_log_denied: "bool"
+  rtmp_log_allowed: "bool"
+  prefer_remote: "bool"
+  mqtt_enabled: "bool"
+  mqtt_broker_url: "str?"
+  mqtt_client_id: "str"
+  mqtt_username: "str?"
+  mqtt_password: "password?"
+  mqtt_prefix: "str"
+  mqtt_discovery: "bool"
+  notifications_enabled: "bool"
+  notifications_poll_interval: "int(1,)"
+  notifications_jitter: "float(0,1)"
+  notifications_max_backoff: "int(1,)"
+  notifications_message_timeout: "int(1,)"
+  sleep_tracking_enabled: "bool"
+  sleep_event_poll_interval: "int(1,)"
+  stats_poll_interval: "int(1,)"
+  events_polling: "bool"
+  events_polling_interval: "int(1,)"
+  events_message_timeout: "int(1,)"
+  log_level: "list(trace|debug|info|warn|error)"

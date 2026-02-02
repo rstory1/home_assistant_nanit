@@ -22,6 +22,12 @@ The RTMP server now uses a **deny-by-default** security model. You must explicit
 
 This allows all private network IPs (10.x, 172.x, 192.168.x). For better security, use a more restrictive preset like `hassio` or specify exact IPs.
 
+# Installation (Home Assistant OS Add-on)
+
+This repository includes a Home Assistant OS add-on wrapper in [addon/nanit](addon/nanit). Copy that folder into your Home Assistant `/addons` directory (local add-ons), then install it from the Add-on Store under “Local add-ons”.
+
+Configuration is done through the add-on UI. Provide a `refresh_token` (recommended) or `email` and `password`, plus your RTMP settings. See [addon/nanit/DOCS.md](addon/nanit/DOCS.md) for full option details.
+
 # Installation (Docker)
 
 ## Pull the Docker Image
