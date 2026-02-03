@@ -49,4 +49,10 @@ export NANIT_EVENTS_MESSAGE_TIMEOUT="$(get_opt '.events_message_timeout')"
 
 export NANIT_LOG_LEVEL="$(get_opt '.log_level')"
 
+echo "[run.sh] Starting Nanit addon..." >&2
+echo "[run.sh] Log level: ${NANIT_LOG_LEVEL}" >&2
+echo "[run.sh] Session file: ${NANIT_SESSION_FILE}" >&2
+echo "[run.sh] Refresh token set: $([ -n "${NANIT_REFRESH_TOKEN}" ] && echo "yes" || echo "no")" >&2
+echo "[run.sh] Executing /app/bin/nanit" >&2
+
 exec /app/bin/nanit
