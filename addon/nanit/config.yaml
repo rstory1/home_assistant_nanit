@@ -24,8 +24,7 @@ options:
   refresh_token: ""
   session_file: "/data/session.json"
   rtmp_enabled: true
-  rtmp_addr: ""
-  rtmp_port: 1935
+  rtmp_addr: "XXX.XXX.XXX.XXX:1935"
   rtmp_allowed_presets: "hassio"
   rtmp_allowed_ips: ""
   rtmp_log_denied: true

@@ -42,9 +42,7 @@ Because Nanit requires 2FA authentication, before we can start we need to acquir
 
 ### Acquire the Refresh Token
 
-Run the bundled init-nanit.sh utility directly via the Docker command line to acquire the token (replace `/path/to/data` with the local path you'd like the container to use for storing session data):
-
-`docker run -it -v /path/to/data:/data --entrypoint=/app/scripts/init-nanit.sh seangreenhalgh/nanit`
+Run the bundled init-nanit.sh utility to generate the refresh token. It will be located in the session.json file. 
 
 ** Important Note regarding Security**
 The refresh token provides complete access to your Nanit account without requiring any additional account information, so be sure to protect your system from access by unauthorized parties, and proceed at your own risk.
@@ -97,6 +95,9 @@ docker run \
   -p 1935:1935 \
   seangreenhalgh/nanit
 ```
+
+For HAOS:
+  NANIT_RMTP_ADDR should be the HAOS Host IP
 
 Available presets:
 - `hassio` - Home Assistant addon network (172.30.32.0/23) + localhost
